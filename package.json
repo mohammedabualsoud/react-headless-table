@@ -58,7 +58,5 @@
   "files": [
     "dist"
   ],
-  "dependencies": {
-    "paging-algorithm": "^1.0.1"
-  }
+  "dependencies": {}
 }

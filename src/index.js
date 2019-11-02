@@ -1,10 +1,12 @@
 import React from 'react'
 import PropTypes from 'prop-types'
 import {columnInstance, rowInstance} from './columnInstance'
+import paginate from './paginate'
 
 export default class HeadlessTable extends React.Component {
 
   static propTypes = {
+    withPagination: PropTypes.bool,
     columns: PropTypes.arrayOf(
       PropTypes.shape({
         selector: PropTypes.oneOfType([
@@ -39,20 +41,33 @@ export default class HeadlessTable extends React.Component {
       })
     ), // columns Definition
     data: PropTypes.array,
-    render: PropTypes.func.isRequired
+    render: PropTypes.func.isRequired,
+    pageSize: PropTypes.number,
+    maxPage: PropTypes.number,
   };
+
+  static defaultProps = {
+    withPagination: true,
+    pageSize: 5,
+    maxPage: 3
+  }
 
   state = {
     rowsInstances: [], // rows instances used for rendering purpose as helpers for the users
     columnsInstances: [], // columns instances used for rendering purpose as helpers for the users
     filters: [], // applied filters, {filter:<type>| method, value: selected value}
     preFilteredRows: [],
-    visibleRows: [],
-    pagingInfo: {}
+    rows: [], // visible rows to show/
+    pagination: {
+      currentPage: 1
+    }
   };
 
   createRowsInstances = (rows, columnsInstances) => {
-    this.setState({rowsInstances: rows.map((row) => rowInstance(row, columnsInstances))})
+    const rowsInstances = rows.map((row) => rowInstance(row, columnsInstances))
+    // Might need to clone rowsInstances into rows, for now it's ok, since we don't modify the rows.
+    this.setState({rowsInstances, rows: rowsInstances})
+    return rowsInstances
   };
 
   createColumnsInstances = (columns) => {
@@ -61,11 +76,32 @@ export default class HeadlessTable extends React.Component {
     return columnsInstances
   };
 
+  changePage = (page) => {
+    this.setState({currentPage: page}, () => {
+      this.computePagination(this.state.rowsInstances)
+    })
+  }
+
+  computePagination = (rowsInstances) => {
+    const {
+      pageSize,
+      maxPage
+    } = this.props
+    const {currentPage} = this.state
+    const pagination = paginate(rowsInstances.length, currentPage, pageSize, maxPage)
+    this.setState({pagination, rows: rowsInstances.slice(pagination.startIndex, pagination.endIndex)})
+  };
+
   init = () => {
     // init the table data.
-    const {data, columns} = this.props
+    const {data, columns, withPagination} = this.props
     const columnsInstances = this.createColumnsInstances(columns)
-    this.createRowsInstances(data, columnsInstances)
+    const rowsInstances = this.createRowsInstances(data, columnsInstances)
+    // if to support pagination
+    if (withPagination) {
+      // generate pagination methods, and state.
+      this.computePagination(rowsInstances)
+    }
   };
 
   componentDidMount() {
@@ -73,9 +109,9 @@ export default class HeadlessTable extends React.Component {
   }
 
   render() {
-    const {data, columns, render} = this.props
+    const {render} = this.props
     return (
-      render({data, columns}, this.state)
+      render({...this.state, gotoPage: this.changePage})
     )
   }
 }
