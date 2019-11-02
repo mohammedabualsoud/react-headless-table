@@ -1,22 +1,81 @@
-import React, { Component } from 'react'
+import React from 'react'
 import PropTypes from 'prop-types'
+import {columnInstance, rowInstance} from './columnInstance'
 
-import styles from './styles.css'
+export default class HeadlessTable extends React.Component {
 
-export default class ExampleComponent extends Component {
   static propTypes = {
-    text: PropTypes.string
+    columns: PropTypes.arrayOf(
+      PropTypes.shape({
+        selector: PropTypes.oneOfType([
+          PropTypes.string,
+          PropTypes.func,
+        ]),
+        show: PropTypes.oneOfType([
+          PropTypes.bool,
+          PropTypes.func,
+        ]),
+        Header: PropTypes.oneOfType([
+          PropTypes.string,
+          PropTypes.func,
+          PropTypes.node,
+        ]),
+        Cell: PropTypes.oneOfType([
+          PropTypes.func,
+          PropTypes.node,
+        ]),
+        filterable: PropTypes.bool,
+        filter: PropTypes.oneOfType([ // filter type name or function
+          PropTypes.string,
+          PropTypes.func,
+        ]), // Filter to use either a  string refer to the supported filters, or custom one.
+        FilterUi: PropTypes.node,
+        sortable: PropTypes.bool,
+        sort: PropTypes.func,
+        width: PropTypes.string,
+        minWidth: PropTypes.string,
+        maxWidth: PropTypes.string,
+        columns: PropTypes.array // nested group headers
+      })
+    ), // columns Definition
+    data: PropTypes.array,
+    render: PropTypes.func.isRequired
+  };
+
+  state = {
+    rowsInstances: [], // rows instances used for rendering purpose as helpers for the users
+    columnsInstances: [], // columns instances used for rendering purpose as helpers for the users
+    filters: [], // applied filters, {filter:<type>| method, value: selected value}
+    preFilteredRows: [],
+    visibleRows: [],
+    pagingInfo: {}
+  };
+
+  createRowsInstances = (rows, columnsInstances) => {
+    this.setState({rowsInstances: rows.map((row) => rowInstance(row, columnsInstances))})
+  };
+
+  createColumnsInstances = (columns) => {
+    const columnsInstances = columns.map(columnInstance)
+    this.setState({columnsInstances})
+    return columnsInstances
+  };
+
+  init = () => {
+    // init the table data.
+    const {data, columns} = this.props
+    const columnsInstances = this.createColumnsInstances(columns)
+    this.createRowsInstances(data, columnsInstances)
+  };
+
+  componentDidMount() {
+    this.init()
   }
 
   render() {
-    const {
-      text
-    } = this.props
-
+    const {data, columns, render} = this.props
     return (
-      <div className={styles.test}>
-        Example Component: {text}
-      </div>
+      render({data, columns}, this.state)
     )
   }
 }

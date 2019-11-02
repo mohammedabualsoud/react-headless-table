@@ -1,7 +1,7 @@
-import ExampleComponent from './'
+import HeadlessTable from './'
 
-describe('ExampleComponent', () => {
+describe('HeadlessTable', () => {
   it('is truthy', () => {
-    expect(ExampleComponent).toBeTruthy()
+    expect(HeadlessTable).toBeTruthy()
   })
 })
