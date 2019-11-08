@@ -2,6 +2,7 @@ import React from 'react'
 import PropTypes from 'prop-types'
 import {columnInstance, rowInstance} from './columnInstance'
 import paginate from './paginate'
+import {defaultOrderByFn} from './utils'
 
 export default class HeadlessTable extends React.Component {
 
@@ -11,29 +12,32 @@ export default class HeadlessTable extends React.Component {
       PropTypes.shape({
         selector: PropTypes.oneOfType([
           PropTypes.string,
-          PropTypes.func,
+          PropTypes.func
         ]),
         show: PropTypes.oneOfType([
           PropTypes.bool,
-          PropTypes.func,
+          PropTypes.func
         ]),
         Header: PropTypes.oneOfType([
           PropTypes.string,
           PropTypes.func,
-          PropTypes.node,
+          PropTypes.node
         ]),
         Cell: PropTypes.oneOfType([
           PropTypes.func,
-          PropTypes.node,
+          PropTypes.node
         ]),
         filterable: PropTypes.bool,
         filter: PropTypes.oneOfType([ // filter type name or function
           PropTypes.string,
-          PropTypes.func,
+          PropTypes.func
         ]), // Filter to use either a  string refer to the supported filters, or custom one.
         FilterUi: PropTypes.node,
         sortable: PropTypes.bool,
-        sort: PropTypes.func,
+        sortType: PropTypes.oneOfType([
+          PropTypes.string,
+          PropTypes.func
+        ]),
         width: PropTypes.string,
         minWidth: PropTypes.string,
         maxWidth: PropTypes.string,
@@ -43,7 +47,7 @@ export default class HeadlessTable extends React.Component {
     data: PropTypes.array,
     render: PropTypes.func.isRequired,
     pageSize: PropTypes.number,
-    maxPage: PropTypes.number,
+    maxPage: PropTypes.number
   };
 
   static defaultProps = {
@@ -53,55 +57,98 @@ export default class HeadlessTable extends React.Component {
   }
 
   state = {
-    rowsInstances: [], // rows instances used for rendering purpose as helpers for the users
+    rowsInstances: [], // rows instances used for processing like sorting, flitering.
     columnsInstances: [], // columns instances used for rendering purpose as helpers for the users
     filters: [], // applied filters, {filter:<type>| method, value: selected value}
     preFilteredRows: [],
-    rows: [], // visible rows to show/
+    appliedColumnSorting: {
+      columnsId: null,
+      desc: null
+    }, //
+    rows: [], // visible rows to show.
+    activePage: [], // Current active page to show
     pagination: {
       currentPage: 1
     }
   };
 
   createRowsInstances = (rows, columnsInstances) => {
-    const rowsInstances = rows.map((row) => rowInstance(row, columnsInstances))
+    const rowsInstances = rows.map((row, rowIdx) => rowInstance(row, columnsInstances, rowIdx))
     // Might need to clone rowsInstances into rows, for now it's ok, since we don't modify the rows.
     this.setState({rowsInstances, rows: rowsInstances})
     return rowsInstances
   };
 
   createColumnsInstances = (columns) => {
-    const columnsInstances = columns.map(columnInstance)
+    const columnsInstances = columns.map((columns, columnId) => columnInstance(columns, columnId, this.toggleSort))
     this.setState({columnsInstances})
     return columnsInstances
   };
 
+  // Sorting
+  toggleSort = (targetColumnId) => {
+    // calculate the sorting state.
+    this.setState(({appliedColumnSorting: {desc, columnId}}) => {
+      let isDescending = desc
+      if (targetColumnId !== columnId) {
+        isDescending = null
+      }
+      isDescending = ((isDescending === null) ? true : ((isDescending === true) ? false : null))
+      return {
+        appliedColumnSorting: {
+          columnId: targetColumnId,
+          desc: isDescending
+        }
+      }
+    }, () => {
+      this.calculateSortedRows(targetColumnId)
+    })
+  };
+
+  calculateSortedRows = (columnId) => {
+    const {columnsInstances, rowsInstances, appliedColumnSorting: {desc}} = this.state
+    const columnInstance = columnsInstances[columnId]
+    if (columnInstance.sortable && typeof desc === 'boolean') {
+      const sortedRows = defaultOrderByFn([...rowsInstances], columnInstance.sort, desc, columnId)
+      this.setState({rows: sortedRows})
+    } else {
+      // reset
+      return this.setState({rows: rowsInstances})
+    }
+  };
+
+  componentDidUpdate(prevProps, prevState, snapshot) {
+    if (prevState.rows !== this.state.rows) {
+      // if to support pagination
+      if (this.props.withPagination) {
+        // generate pagination methods, and state.
+        this.computePagination()
+      }
+    }
+  }
+
+  // Pagineation
   changePage = (page) => {
     this.setState({currentPage: page}, () => {
       this.computePagination(this.state.rowsInstances)
     })
-  }
+  };
 
-  computePagination = (rowsInstances) => {
+  computePagination = () => {
     const {
       pageSize,
       maxPage
     } = this.props
-    const {currentPage} = this.state
-    const pagination = paginate(rowsInstances.length, currentPage, pageSize, maxPage)
-    this.setState({pagination, rows: rowsInstances.slice(pagination.startIndex, pagination.endIndex)})
+    const {currentPage, rows} = this.state
+    const pagination = paginate(rows.length, currentPage, pageSize, maxPage)
+    this.setState({pagination, activePage: rows.slice(pagination.startIndex, pagination.endIndex)})
   };
 
   init = () => {
     // init the table data.
-    const {data, columns, withPagination} = this.props
+    const {data, columns} = this.props
     const columnsInstances = this.createColumnsInstances(columns)
-    const rowsInstances = this.createRowsInstances(data, columnsInstances)
-    // if to support pagination
-    if (withPagination) {
-      // generate pagination methods, and state.
-      this.computePagination(rowsInstances)
-    }
+    this.createRowsInstances(data, columnsInstances)
   };
 
   componentDidMount() {

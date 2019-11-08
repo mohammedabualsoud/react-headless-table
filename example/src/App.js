@@ -65,11 +65,11 @@ export default class App extends Component {
     return (
       <div>
         <HeadlessTable
-          withPagination={false}
+          withPagination={true}
           maxPage={5}
           data={data}
           columns={SUPPORTED_FIELDS_COLUMNS}
-          render={({columnsInstances, rows, pagination, gotoPage}) => {
+          render={({columnsInstances, activePage, pagination, gotoPage, appliedColumnSorting: {columnId, desc}}) => {
             const {
               pages,
               currentPage,
@@ -83,15 +83,23 @@ export default class App extends Component {
                     <tr>
                       {columnsInstances.map((column, columnIdx) => {
                         return (
-                          <th {...column.getColumnProps} key={columnIdx}>
+                          <th {...column.getColumnProps(column.getSortProps())} key={columnIdx}>
                             {column.renderHeader()}
+                            <span>
+                              {column.sortable && columnId === columnIdx &&
+                                <React.Fragment>
+                                  {desc === true && ' 🔽 '}
+                                  {desc === false && ' 🔼 '}
+                                </React.Fragment>
+                              }
+                            </span>
                           </th>
                         )
                       })}
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map(
+                    {activePage.map(
                       (row, i) =>
                         (
                           <tr {...row.getRowProps()} key={'row'+i}

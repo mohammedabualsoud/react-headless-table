@@ -21,7 +21,6 @@ npm install --save react-headless-table
 
 ## TODOS
 - Add docs about usage.
-- Support Sorting, can be custumized.
 - Support Different kind of filters, can be custmized.
 
 ## Usage
