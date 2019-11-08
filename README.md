@@ -18,7 +18,10 @@ Run the example:
 ```bash
 npm install --save react-headless-table
 ```
-
+## Features
+* Support Pagination.
+* Support sorting on columns, easily custmized.
+* Support Filitering on columns, easily custmized.
 ## TODOS
 - Add docs about usage.
 - Support Different kind of filters, can be custmized.
